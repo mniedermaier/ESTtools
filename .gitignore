@@ -2,8 +2,8 @@
 *.o
 *.elf
 *.bin
-src/rootserver
-src/*.o
+buildroot/src/rootserver
+buildroot/src/*.o
 
 # Docker
 .docker/

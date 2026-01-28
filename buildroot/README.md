@@ -14,6 +14,7 @@ Docker image with Buildroot 2009.05 and a pre-built MIPS cross-compilation toolc
 ### Build the Docker image
 
 ```bash
+cd buildroot
 docker build -t buildroot-2009.05 .
 ```
 
@@ -22,12 +23,14 @@ docker build -t buildroot-2009.05 .
 Use the provided build script:
 
 ```bash
+cd buildroot
 ./build.sh
 ```
 
 Or manually:
 
 ```bash
+cd buildroot
 docker run --rm -v $(pwd)/src:/src buildroot-2009.05 \
   mips-linux-uclibc-gcc-4.3.3 /src/rootserver.c -o /src/rootserver
 ```
@@ -35,6 +38,7 @@ docker run --rm -v $(pwd)/src:/src buildroot-2009.05 \
 ### Interactive shell
 
 ```bash
+cd buildroot
 docker run -it --rm -v $(pwd)/src:/src buildroot-2009.05
 ```
 
@@ -65,7 +69,7 @@ The toolchain is automatically added to PATH in the container.
 ## Directory Structure
 
 ```
-.
+buildroot/
 ├── Dockerfile          # Docker build configuration
 ├── README.md           # This file
 ├── build.sh            # Build script for src/rootserver.c
