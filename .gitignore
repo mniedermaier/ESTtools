@@ -1,0 +1,24 @@
+# Compiled binaries
+*.o
+*.elf
+*.bin
+src/rootserver
+src/*.o
+
+# Docker
+.docker/
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+output/
+build/
