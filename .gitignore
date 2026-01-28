@@ -1,7 +1,6 @@
 # Compiled binaries
 *.o
 *.elf
-*.bin
 buildroot/src/rootserver
 buildroot/src/*.o
 
@@ -22,3 +21,11 @@ Thumbs.db
 # Build artifacts
 output/
 build/
+
+# imageManipulation build artifacts
+imageManipulation/newimage.bin
+imageManipulation/newsquash.bin
+imageManipulation/squashfs-root/
+imageManipulation/fmk/
+imageManipulation/kernel.bin
+imageManipulation/rootfs.img
