@@ -11,77 +11,90 @@ Educational toolkit for learning about embedded systems, firmware analysis, and 
 - Do not use these tools on devices you do not own or without proper authorization
 - The authors assume no responsibility for misuse of these materials
 
-## Quick Start - Web Lab
-
-The easiest way to use this toolkit is through the web-based lab environment:
+## Quick Start
 
 ```bash
 cd tools
 
-# Start the lab
+# Launch the interactive CLI (builds Docker image on first run)
 ./start.sh
 
-# Access the web interface at http://localhost:8080
-
-# Stop the lab
-./start.sh stop
+# Or build the image first
+./start.sh build
 ```
 
-### Lab Commands
+**Note:** First run takes several minutes to build the MIPS cross-compilation toolchain.
+
+## CLI Features
+
+The interactive terminal interface provides:
+
+```
+1) Analyze Firmware    - File info, MD5, binwalk scan, TP-Link header check
+2) Extract Firmware    - Extract filesystem using binwalk
+3) Browse Files        - Navigate extracted filesystem in terminal
+4) Cross-Compile       - Compile C code for MIPS using buildroot toolchain
+5) Rebuild Firmware    - Create modified firmware images
+```
+
+### Commands
 
 ```bash
-cd tools
-./start.sh start    # Start the lab (default)
-./start.sh stop     # Stop the lab
-./start.sh restart  # Restart the lab
-./start.sh status   # Show lab status
-./start.sh logs     # View container logs
-./start.sh build    # Rebuild the container
-./start.sh shell    # Open shell in container
-./start.sh clean    # Remove all lab data
+./start.sh           # Launch interactive TUI
+./start.sh build     # Build/rebuild Docker image
+./start.sh shell     # Open shell in container
+./start.sh clean     # Remove Docker image
+./start.sh help      # Show help
 ```
 
-### Web Lab Features
+## Directory Structure
 
-The web interface provides:
-- **File Info** - Basic file analysis with binwalk signature scan
-- **MD5 Check** - TP-Link firmware header verification
-- **Hex Dump** - View firmware header bytes
-- **String Extraction** - Find readable strings in firmware
-- **Filesystem Extraction** - Extract embedded filesystems
+```
+tools/
+├── start.sh           # CLI launcher
+├── cli/               # CLI tool and Dockerfile
+├── samples/           # Place firmware files here
+├── extracted/         # Extracted firmware output
+├── build/             # Built firmware output
+├── buildroot/
+│   └── src/           # Place C source files here for cross-compilation
+├── imageManipulation/ # Firmware manipulation scripts
+└── md5tool/           # MD5 verification tool
+```
 
-## Contents
+## Workflow Example
 
-### tools/lab/
-Web-based lab environment with Docker container including all analysis tools (binwalk, mktplinkfw, sasquatch, etc.).
+1. Place a firmware file in `tools/samples/`
+2. Run `./start.sh`
+3. Select **1) Analyze Firmware** to inspect the file
+4. Select **2) Extract Firmware** to extract the filesystem
+5. Select **3) Browse Files** to explore extracted contents
+6. Modify files as needed
+7. Select **5) Rebuild Firmware** to create a new image
 
-### tools/buildroot/
-Docker-based MIPS cross-compilation environment using Buildroot 2009.05. Demonstrates how to set up a toolchain for compiling code targeting embedded Linux devices.
+## Cross-Compilation
 
-### tools/imageManipulation/
-Tools for extracting and rebuilding firmware images. Teaches the structure of embedded firmware including:
-- Firmware headers and checksums
-- SquashFS filesystem extraction
-- Kernel and rootfs layout
+To compile C code for MIPS:
 
-### tools/md5tool/
-Utility for analyzing firmware header checksums. Demonstrates how embedded devices verify firmware integrity.
+1. Place your `.c` files in `tools/buildroot/src/`
+2. Run `./start.sh`
+3. Select **4) Cross-Compile (MIPS)**
+4. Select the file to compile
+5. Binary output appears in `tools/buildroot/src/`
 
 ## Requirements
 
 - Docker
-- Docker Compose
 - Linux environment (tested on Ubuntu)
 
 ## Educational Topics Covered
 
-- Cross-compilation for embedded architectures (MIPS)
 - Firmware structure and analysis
 - Filesystem formats (SquashFS)
+- Cross-compilation for embedded architectures (MIPS)
 - Checksum verification mechanisms
-- Docker-based reproducible build environments
-- Web-based security analysis workflows
+- Firmware modification and rebuilding
 
 ## License
 
-Educational use only. Third-party tools (mktplinkfw, firmware-mod-kit, binwalk) retain their original licenses (GPL-2.0).
+Educational use only. Third-party tools (mktplinkfw, binwalk, sasquatch) retain their original licenses (GPL-2.0).

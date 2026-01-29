@@ -1,21 +1,21 @@
 #
-# Embedded Security Testing Lab - Docker Image
+# Embedded Security Testing - CLI Tool
 # Educational environment for firmware analysis
 #
 
 FROM ubuntu:22.04
 
 LABEL maintainer="EST Lab"
-LABEL description="Embedded Security Testing Lab - Educational Environment"
+LABEL description="Embedded Security Testing CLI - Educational Environment"
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
+ENV TERM=xterm-256color
 
-# Install base dependencies
+# Install base dependencies including MIPS cross-compiler
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
-    python3-venv \
     git \
     build-essential \
     cmake \
@@ -37,7 +37,11 @@ RUN apt-get update && apt-get install -y \
     cpio \
     squashfs-tools \
     libssl-dev \
+    gcc-mipsel-linux-gnu \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+RUN pip3 install rich
 
 # Install binwalk (legacy Python version)
 RUN git clone --branch v2.3.4 --depth 1 https://github.com/ReFirmLabs/binwalk.git /tmp/binwalk && \
@@ -46,7 +50,6 @@ RUN git clone --branch v2.3.4 --depth 1 https://github.com/ReFirmLabs/binwalk.gi
     rm -rf /tmp/binwalk
 
 # Build and install sasquatch (for non-standard SquashFS)
-# Use CFLAGS to fix GCC 10+ multiple definition errors and disable -Werror
 RUN git clone https://github.com/devttys0/sasquatch.git /tmp/sasquatch && \
     cd /tmp/sasquatch && \
     sed -i 's/-Werror//g' patches/patch0.txt && \
@@ -62,24 +65,14 @@ RUN git clone --depth 1 https://github.com/openwrt/firmware-utils.git /tmp/firmw
     chmod +x /usr/local/bin/mktplinkfw && \
     rm -rf /tmp/firmware-utils
 
-# Create application directory
-WORKDIR /app
+# Create work directory
+WORKDIR /work
 
-# Copy web application
-COPY webapp/requirements.txt /app/
-RUN pip3 install --no-cache-dir -r requirements.txt
+# Copy CLI tool
+COPY est.py /usr/local/bin/est
+RUN chmod +x /usr/local/bin/est
 
-COPY webapp/ /app/
+# Create directories
+RUN mkdir -p /work/samples /work/extracted /work/build /work/buildroot/src
 
-# Create data directory for uploads
-RUN mkdir -p /data/uploads && chmod 777 /data/uploads
-
-# Expose web port
-EXPOSE 5000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5000/ || exit 1
-
-# Run with gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "app:app"]
+ENTRYPOINT ["python3", "/usr/local/bin/est"]

@@ -41,5 +41,6 @@ __pycache__/
 *.pyo
 .pytest_cache/
 
-# Lab data
-tools/lab/webapp/uploads/
+# CLI extracted/build output
+tools/extracted/
+tools/build/
