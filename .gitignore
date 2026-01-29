@@ -1,8 +1,8 @@
 # Compiled binaries
 *.o
 *.elf
-buildroot/src/rootserver
-buildroot/src/*.o
+tools/buildroot/src/rootserver
+tools/buildroot/src/*.o
 
 # Docker
 .docker/
@@ -23,9 +23,23 @@ output/
 build/
 
 # imageManipulation build artifacts
-imageManipulation/newimage.bin
-imageManipulation/newsquash.bin
-imageManipulation/squashfs-root/
-imageManipulation/fmk/
-imageManipulation/kernel.bin
-imageManipulation/rootfs.img
+tools/imageManipulation/newimage.bin
+tools/imageManipulation/newsquash.bin
+tools/imageManipulation/squashfs-root/
+tools/imageManipulation/fmk/
+tools/imageManipulation/kernel.bin
+tools/imageManipulation/rootfs.img
+
+# Sample firmware files (exclude user-added, keep original.bin)
+tools/samples/*.img
+tools/samples/*.fw
+!tools/samples/original.bin
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# Lab data
+tools/lab/webapp/uploads/
