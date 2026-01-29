@@ -56,10 +56,8 @@ tools/
 ├── samples/           # Place firmware files here
 ├── extracted/         # Extracted firmware output
 ├── build/             # Built firmware output
-├── buildroot/
-│   └── src/           # Place C source files here for cross-compilation
-├── imageManipulation/ # Firmware manipulation scripts
-└── md5tool/           # MD5 verification tool
+└── buildroot/
+    └── src/           # Place C source files here for cross-compilation
 ```
 
 ## Workflow Example

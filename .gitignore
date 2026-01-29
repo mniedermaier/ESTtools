@@ -22,14 +22,6 @@ Thumbs.db
 output/
 build/
 
-# imageManipulation build artifacts
-tools/imageManipulation/newimage.bin
-tools/imageManipulation/newsquash.bin
-tools/imageManipulation/squashfs-root/
-tools/imageManipulation/fmk/
-tools/imageManipulation/kernel.bin
-tools/imageManipulation/rootfs.img
-
 # Sample firmware files (exclude user-added, keep original.bin)
 tools/samples/*.img
 tools/samples/*.fw
