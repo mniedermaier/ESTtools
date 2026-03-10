@@ -396,7 +396,7 @@ def compile_code():
     ) as progress:
         task = progress.add_task("Compiling with MIPS GCC...", total=None)
         success, output = run_command(
-            f"mipsel-linux-gnu-gcc -static '{source}' -o '{SRC_DIR}/{output_name}' 2>&1"
+            f"mipsel-linux-gnu-gcc '{source}' -o '{SRC_DIR}/{output_name}' 2>&1"
         )
 
     if success:
