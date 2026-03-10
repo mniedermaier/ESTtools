@@ -23,18 +23,19 @@ cd tools
 ./start.sh build
 ```
 
-**Note:** First run takes several minutes to build the MIPS cross-compilation toolchain.
+**Note:** First run takes several minutes to download the MIPS cross-toolchain and Ghidra.
 
 ## CLI Features
 
 The interactive terminal interface provides:
 
 ```
-1) Analyze Firmware    - File info, MD5, binwalk scan, TP-Link header check
-2) Extract Firmware    - Extract filesystem using binwalk
-3) Browse Files        - Navigate extracted filesystem in terminal
-4) Cross-Compile       - Compile C code for MIPS using buildroot toolchain
-5) Rebuild Firmware    - Create modified firmware images
+1) Analyze Firmware         - File info, MD5, binwalk scan, TP-Link header check
+2) Extract Firmware         - Extract filesystem using binwalk
+3) Browse Files             - Navigate extracted filesystem in terminal
+4) Cross-Compile (MIPS)     - Compile C code for MIPS using uClibc toolchain
+5) Rebuild Firmware         - Create modified firmware images
+6) Reverse Engineer Binary  - Disassembly, Ghidra analysis, vulnerability scanning
 ```
 
 ### Commands
@@ -67,8 +68,9 @@ tools/
 3. Select **1) Analyze Firmware** to inspect the file
 4. Select **2) Extract Firmware** to extract the filesystem
 5. Select **3) Browse Files** to explore extracted contents
-6. Modify files as needed
-7. Select **5) Rebuild Firmware** to create a new image
+6. Select **6) Reverse Engineer Binary** to analyze binaries (e.g., `httpd`)
+7. Modify files as needed
+8. Select **5) Rebuild Firmware** to create a new image
 
 ## Cross-Compilation
 
@@ -80,6 +82,40 @@ To compile C code for MIPS:
 4. Select the file to compile
 5. Binary output appears in `tools/buildroot/src/`
 
+## Reverse Engineering
+
+The reverse engineering module provides three analysis tools for MIPS ELF binaries extracted from firmware:
+
+### Objdump Disassembly
+
+Disassemble binaries using the MIPS cross-toolchain's objdump. Available modes:
+
+- **Disassembly (`-d`)** - Full instruction-level disassembly
+- **Symbol table (`-t`)** - List all symbols (functions, variables)
+- **All headers (`-x`)** - ELF headers, sections, relocations
+- **Dynamic symbols (`-T`)** - Imported/exported shared library symbols
+
+### Ghidra Headless Analysis
+
+Runs [Ghidra](https://ghidra-sre.org/) in headless mode for automated binary analysis. This imports the binary into a Ghidra project, performs auto-analysis (function detection, cross-references, data type propagation), and reports results. The Ghidra project is saved to `ghidra_projects/` for later inspection.
+
+### Vulnerability Pattern Search
+
+Automated scan for common vulnerability indicators:
+
+- **Dangerous functions** - Imported calls to `system`, `popen`, `execve`, `sprintf`, `strcpy`, `strcat`, `gets` (buffer overflows, command injection)
+- **Hardcoded credentials** - Strings containing `password`, `admin`, `secret`, `backdoor`, etc.
+- **Command execution patterns** - References to `/bin/sh`, `exec`, `cmd=`, shell commands
+- **Network/CGI attack surface** - CGI endpoints, `ping`, `traceroute`, `userRpm` handlers
+
+### Workflow Example
+
+1. Extract firmware with **2) Extract Firmware**
+2. Select **6) Reverse Engineer Binary**
+3. Choose an analysis mode (e.g., **3) Vulnerability Pattern Search**)
+4. Select a MIPS ELF binary from the extracted filesystem (e.g., `httpd`)
+5. Review the results
+
 ## Requirements
 
 - Docker
@@ -89,9 +125,11 @@ To compile C code for MIPS:
 
 - Firmware structure and analysis
 - Filesystem formats (SquashFS)
-- Cross-compilation for embedded architectures (MIPS)
+- Cross-compilation for embedded architectures (MIPS big-endian, uClibc)
 - Checksum verification mechanisms
 - Firmware modification and rebuilding
+- Binary reverse engineering and disassembly (objdump, Ghidra)
+- Vulnerability pattern analysis
 
 ## License
 

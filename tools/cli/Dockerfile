@@ -1,6 +1,6 @@
 #
 # Embedded Security Testing - CLI Tool
-# Educational environment for firmware analysis
+# Educational environment for firmware analysis and reverse engineering
 #
 
 FROM ubuntu:22.04
@@ -12,7 +12,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
 ENV TERM=xterm-256color
 
-# Install base dependencies including MIPS cross-compiler
+# Install base dependencies
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
@@ -38,16 +38,25 @@ RUN apt-get update && apt-get install -y \
     squashfs-tools \
     libssl-dev \
     xz-utils \
+    openjdk-17-jdk-headless \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Bootlin MIPSEL uClibc cross-toolchain (compatible with Buildroot 2009.05 targets)
-RUN wget -q https://toolchains.bootlin.com/downloads/releases/toolchains/mips32el/tarballs/mips32el--uclibc--stable-2024.05-1.tar.xz -O /tmp/toolchain.tar.xz && \
-    mkdir -p /opt/mipsel-uclibc && \
-    tar xf /tmp/toolchain.tar.xz -C /opt/mipsel-uclibc --strip-components=1 && \
+# Install Bootlin MIPS big-endian uClibc cross-toolchain (compatible with Buildroot 2009.05 targets)
+RUN wget -q https://toolchains.bootlin.com/downloads/releases/toolchains/mips32/tarballs/mips32--uclibc--stable-2025.08-1.tar.xz -O /tmp/toolchain.tar.xz && \
+    mkdir -p /opt/mips-uclibc && \
+    tar xf /tmp/toolchain.tar.xz -C /opt/mips-uclibc --strip-components=1 && \
     rm /tmp/toolchain.tar.xz && \
-    /opt/mipsel-uclibc/relocate-sdk.sh
+    /opt/mips-uclibc/relocate-sdk.sh
 
-ENV PATH="/opt/mipsel-uclibc/bin:${PATH}"
+ENV PATH="/opt/mips-uclibc/bin:${PATH}"
+
+# Install Ghidra for headless binary analysis
+RUN curl -sL https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_12.0.4_build/ghidra_12.0.4_PUBLIC_20260303.zip -o /tmp/ghidra.zip && \
+    unzip -q /tmp/ghidra.zip -d /opt && \
+    rm /tmp/ghidra.zip
+
+ENV GHIDRA_INSTALL_DIR=/opt/ghidra_12.0.4_PUBLIC
+ENV PATH="/opt/ghidra_12.0.4_PUBLIC/support:${PATH}"
 
 # Install Python packages
 RUN pip3 install rich
@@ -82,6 +91,6 @@ COPY est.py /usr/local/bin/est
 RUN chmod +x /usr/local/bin/est
 
 # Create directories
-RUN mkdir -p /work/samples /work/extracted /work/build /work/buildroot/src
+RUN mkdir -p /work/samples /work/extracted /work/build /work/buildroot/src /work/ghidra_projects
 
 ENTRYPOINT ["python3", "/usr/local/bin/est"]

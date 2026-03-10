@@ -37,6 +37,11 @@ SAMPLES_DIR = WORK_DIR / "samples"
 EXTRACT_DIR = WORK_DIR / "extracted"
 BUILD_DIR = WORK_DIR / "build"
 SRC_DIR = WORK_DIR / "buildroot" / "src"
+GHIDRA_DIR = WORK_DIR / "ghidra_projects"
+GHIDRA_HEADLESS = "/opt/ghidra_12.0.4_PUBLIC/support/analyzeHeadless"
+MIPS_OBJDUMP = "mips-buildroot-linux-uclibc-objdump"
+MIPS_READELF = "mips-buildroot-linux-uclibc-readelf"
+MIPS_GCC = "mips-buildroot-linux-uclibc-gcc"
 
 
 def clear_screen():
@@ -396,7 +401,7 @@ def compile_code():
     ) as progress:
         task = progress.add_task("Compiling with MIPS GCC...", total=None)
         success, output = run_command(
-            f"mipsel-buildroot-linux-uclibc-gcc '{source}' -o '{SRC_DIR}/{output_name}' 2>&1"
+            f"{MIPS_GCC} '{source}' -o '{SRC_DIR}/{output_name}' 2>&1"
         )
 
     if success:
@@ -514,6 +519,242 @@ def rebuild_firmware():
     Prompt.ask("\nPress Enter to continue")
 
 
+def select_binary():
+    """Let user select an ELF binary from extracted firmware"""
+    if not EXTRACT_DIR.exists():
+        console.print("[red]No extracted firmware found. Extract a firmware first.[/red]")
+        return None
+
+    # Find all ELF files in extracted directories
+    binaries = []
+    for f in EXTRACT_DIR.rglob("*"):
+        if f.is_file() and f.stat().st_size > 0:
+            success, ftype = run_command(f"file -b '{f}' 2>/dev/null")
+            if "ELF" in ftype and "MIPS" in ftype:
+                binaries.append((f, ftype.strip()))
+
+    if not binaries:
+        console.print("[red]No MIPS ELF binaries found in extracted firmware.[/red]")
+        return None
+
+    table = Table(title="MIPS ELF Binaries")
+    table.add_column("#", style="cyan", width=4)
+    table.add_column("Path", style="green")
+    table.add_column("Type", style="dim", max_width=50)
+
+    for i, (f, ftype) in enumerate(binaries, 1):
+        rel = str(f.relative_to(EXTRACT_DIR))
+        table.add_row(str(i), rel, ftype[:50])
+
+    console.print(table)
+
+    choice = Prompt.ask(
+        "Select binary",
+        choices=[str(i) for i in range(1, len(binaries)+1)] + ["0"],
+        default="0"
+    )
+
+    if choice == "0":
+        return None
+
+    return binaries[int(choice) - 1][0]
+
+
+def run_objdump_analysis(binary_path):
+    """Disassemble a binary with objdump"""
+    clear_screen()
+    print_banner()
+    console.print(f"[bold cyan]═══ Objdump: {binary_path.name} ═══[/bold cyan]\n")
+
+    table = Table(show_header=False, box=None)
+    table.add_column("Option", style="cyan", width=4)
+    table.add_column("Description", style="white")
+    table.add_row("1", "Disassembly (-d)")
+    table.add_row("2", "Symbol table (-t)")
+    table.add_row("3", "All headers (-x)")
+    table.add_row("4", "Dynamic symbols (-T)")
+    table.add_row("0", "Back")
+    console.print(table)
+
+    choice = Prompt.ask("Select", choices=["0", "1", "2", "3", "4"], default="0")
+
+    if choice == "0":
+        return
+
+    flags = {"1": "-d", "2": "-t", "3": "-x", "4": "-T"}
+    flag = flags[choice]
+
+    console.print(f"\n[dim]Running: {MIPS_OBJDUMP} {flag} {binary_path.name}[/dim]\n")
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console
+    ) as progress:
+        task = progress.add_task("Disassembling...", total=None)
+        success, output = run_command(f"{MIPS_OBJDUMP} {flag} '{binary_path}' 2>&1 | head -500")
+
+    if success:
+        console.print(Syntax(output, "asm", theme="monokai", line_numbers=False))
+        console.print("\n[dim](showing first 500 lines)[/dim]")
+    else:
+        console.print(f"[red]Objdump failed:[/red]\n{output}")
+
+    Prompt.ask("\nPress Enter to continue")
+
+
+def run_ghidra_analysis(binary_path):
+    """Run Ghidra headless analysis on a binary"""
+    clear_screen()
+    print_banner()
+    console.print(f"[bold cyan]═══ Ghidra Analysis: {binary_path.name} ═══[/bold cyan]\n")
+
+    GHIDRA_DIR.mkdir(parents=True, exist_ok=True)
+    project_name = f"EST_{binary_path.stem}"
+
+    console.print(f"[bold]Binary:[/bold] {binary_path}")
+    console.print(f"[bold]Project:[/bold] {project_name}\n")
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console
+    ) as progress:
+        task = progress.add_task("Running Ghidra auto-analysis (this may take a while)...", total=None)
+        success, output = run_command(
+            f"{GHIDRA_HEADLESS} '{GHIDRA_DIR}' {project_name} "
+            f"-import '{binary_path}' -overwrite "
+            f"-analysisTimeoutPerFile 300 "
+            f"-scriptPath '{GHIDRA_DIR}' "
+            f"2>&1",
+        )
+
+    if success:
+        console.print("[green]✓ Ghidra analysis complete![/green]\n")
+        # Show summary: filter for interesting lines
+        for line in output.splitlines():
+            if any(k in line for k in ["INFO", "WARN", "functions", "Import", "Analysis"]):
+                console.print(f"[dim]{line}[/dim]")
+    else:
+        console.print(f"[red]Ghidra analysis failed[/red]")
+        # Show last 30 lines of output for debugging
+        lines = output.strip().splitlines()
+        for line in lines[-30:]:
+            console.print(f"[dim]{line}[/dim]")
+
+    Prompt.ask("\nPress Enter to continue")
+
+
+def search_vuln_patterns(binary_path):
+    """Search for vulnerability patterns in a binary"""
+    clear_screen()
+    print_banner()
+    console.print(f"[bold cyan]═══ Vulnerability Pattern Search: {binary_path.name} ═══[/bold cyan]\n")
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console
+    ) as progress:
+        task = progress.add_task("Scanning for dangerous patterns...", total=None)
+
+        # 1. Check imported dangerous functions
+        progress.update(task, description="Checking imported functions...")
+        _, symbols = run_command(f"{MIPS_READELF} -s '{binary_path}' 2>/dev/null")
+        _, dyn_symbols = run_command(f"{MIPS_READELF} -r '{binary_path}' 2>/dev/null")
+
+        # 2. Search strings for credentials/secrets
+        progress.update(task, description="Searching for hardcoded credentials...")
+        _, cred_strings = run_command(
+            f"strings '{binary_path}' | grep -iE '(password|passwd|admin|root|secret|key=|token|backdoor|default)'"
+        )
+
+        # 3. Search for command injection patterns
+        progress.update(task, description="Searching for command injection patterns...")
+        _, cmd_strings = run_command(
+            f"strings '{binary_path}' | grep -iE '(system\\(|/bin/sh|sh -c|popen|exec|cmd=|echo.*>>|wget |tftp |curl )'"
+        )
+
+        # 4. Search for network patterns
+        progress.update(task, description="Searching for network patterns...")
+        _, net_strings = run_command(
+            f"strings '{binary_path}' | grep -iE '(ping|traceroute|arp|telnet|\\.cgi|\\.asp|userRpm)'"
+        )
+
+    # Display results
+    dangerous_funcs = ["system", "popen", "execve", "exec_cmd", "sprintf", "strcpy",
+                       "strcat", "gets", "scanf", "sscanf"]
+
+    console.print("[bold red]── Dangerous Imported Functions ──[/bold red]")
+    found_any = False
+    for func in dangerous_funcs:
+        count = symbols.lower().count(func)
+        if count > 0:
+            severity = "[red]HIGH[/red]" if func in ("system", "popen", "execve", "gets", "exec_cmd") else "[yellow]MEDIUM[/yellow]"
+            console.print(f"  {severity}  {func} (referenced {count}x)")
+            found_any = True
+    if not found_any:
+        console.print("  [green]None found in symbol table[/green]")
+
+    console.print(f"\n[bold red]── Hardcoded Credentials/Secrets ──[/bold red]")
+    if cred_strings.strip():
+        for line in cred_strings.strip().splitlines()[:20]:
+            console.print(f"  [yellow]{line}[/yellow]")
+    else:
+        console.print("  [green]None found[/green]")
+
+    console.print(f"\n[bold red]── Command Execution Patterns ──[/bold red]")
+    if cmd_strings.strip():
+        for line in cmd_strings.strip().splitlines()[:20]:
+            console.print(f"  [red]{line}[/red]")
+    else:
+        console.print("  [green]None found[/green]")
+
+    console.print(f"\n[bold yellow]── Network/CGI Attack Surface ──[/bold yellow]")
+    if net_strings.strip():
+        for line in net_strings.strip().splitlines()[:20]:
+            console.print(f"  [cyan]{line}[/cyan]")
+    else:
+        console.print("  [green]None found[/green]")
+
+    Prompt.ask("\nPress Enter to continue")
+
+
+def reverse_engineer():
+    """Reverse engineering submenu"""
+    while True:
+        clear_screen()
+        print_banner()
+        console.print("[bold cyan]═══ Reverse Engineer Binary ═══[/bold cyan]\n")
+
+        table = Table(show_header=False, box=None)
+        table.add_column("Option", style="cyan", width=4)
+        table.add_column("Description", style="white")
+        table.add_row("1", "Objdump Disassembly")
+        table.add_row("2", "Ghidra Headless Analysis")
+        table.add_row("3", "Vulnerability Pattern Search")
+        table.add_row("", "")
+        table.add_row("0", "Back")
+        console.print(table)
+
+        choice = Prompt.ask("\nSelect option", choices=["0", "1", "2", "3"], default="0")
+
+        if choice == "0":
+            break
+
+        binary = select_binary()
+        if not binary:
+            Prompt.ask("\nPress Enter to continue")
+            continue
+
+        if choice == "1":
+            run_objdump_analysis(binary)
+        elif choice == "2":
+            run_ghidra_analysis(binary)
+        elif choice == "3":
+            search_vuln_patterns(binary)
+
+
 def main_menu():
     """Main menu"""
     while True:
@@ -529,12 +770,13 @@ def main_menu():
         table.add_row("3", "Browse Extracted Files")
         table.add_row("4", "Cross-Compile (MIPS)")
         table.add_row("5", "Rebuild Firmware")
+        table.add_row("6", "Reverse Engineer Binary")
         table.add_row("", "")
         table.add_row("0", "Exit")
 
         console.print(table)
 
-        choice = Prompt.ask("\nSelect option", choices=["0", "1", "2", "3", "4", "5"], default="0")
+        choice = Prompt.ask("\nSelect option", choices=["0", "1", "2", "3", "4", "5", "6"], default="0")
 
         if choice == "0":
             console.print("\n[dim]Goodbye![/dim]")
@@ -549,6 +791,8 @@ def main_menu():
             compile_code()
         elif choice == "5":
             rebuild_firmware()
+        elif choice == "6":
+            reverse_engineer()
 
 
 if __name__ == "__main__":
