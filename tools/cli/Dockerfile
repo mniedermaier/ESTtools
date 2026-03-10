@@ -37,8 +37,17 @@ RUN apt-get update && apt-get install -y \
     cpio \
     squashfs-tools \
     libssl-dev \
-    gcc-mipsel-linux-gnu \
+    xz-utils \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Bootlin MIPSEL uClibc cross-toolchain (compatible with Buildroot 2009.05 targets)
+RUN wget -q https://toolchains.bootlin.com/downloads/releases/toolchains/mips32el/tarballs/mips32el--uclibc--stable-2024.05-1.tar.xz -O /tmp/toolchain.tar.xz && \
+    mkdir -p /opt/mipsel-uclibc && \
+    tar xf /tmp/toolchain.tar.xz -C /opt/mipsel-uclibc --strip-components=1 && \
+    rm /tmp/toolchain.tar.xz && \
+    /opt/mipsel-uclibc/relocate-sdk.sh
+
+ENV PATH="/opt/mipsel-uclibc/bin:${PATH}"
 
 # Install Python packages
 RUN pip3 install rich
