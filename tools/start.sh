@@ -27,6 +27,7 @@ mkdir -p "$SCRIPT_DIR/samples"
 mkdir -p "$SCRIPT_DIR/extracted"
 mkdir -p "$SCRIPT_DIR/build"
 mkdir -p "$SCRIPT_DIR/buildroot/src"
+mkdir -p "$SCRIPT_DIR/reports"
 
 show_help() {
     echo "Embedded Security Testing - CLI Tool"
@@ -66,6 +67,7 @@ run_cli() {
         -v "$SCRIPT_DIR/extracted:/work/extracted" \
         -v "$SCRIPT_DIR/build:/work/build" \
         -v "$SCRIPT_DIR/buildroot/src:/work/buildroot/src" \
+        -v "$SCRIPT_DIR/reports:/work/reports" \
         "$IMAGE_NAME"
 }
 
@@ -83,6 +85,7 @@ run_shell() {
         -v "$SCRIPT_DIR/extracted:/work/extracted" \
         -v "$SCRIPT_DIR/build:/work/build" \
         -v "$SCRIPT_DIR/buildroot/src:/work/buildroot/src" \
+        -v "$SCRIPT_DIR/reports:/work/reports" \
         --entrypoint /bin/bash \
         "$IMAGE_NAME"
 }

@@ -38,6 +38,7 @@ EXTRACT_DIR = WORK_DIR / "extracted"
 BUILD_DIR = WORK_DIR / "build"
 SRC_DIR = WORK_DIR / "buildroot" / "src"
 GHIDRA_DIR = WORK_DIR / "ghidra_projects"
+REPORTS_DIR = WORK_DIR / "reports"
 GHIDRA_HEADLESS = "/opt/ghidra_12.0.4_PUBLIC/support/analyzeHeadless"
 MIPS_OBJDUMP = "mips-buildroot-linux-uclibc-objdump"
 MIPS_READELF = "mips-buildroot-linux-uclibc-readelf"
@@ -610,8 +611,9 @@ def run_ghidra_analysis(binary_path):
     console.print(f"[bold cyan]═══ Ghidra Analysis: {binary_path.name} ═══[/bold cyan]\n")
 
     GHIDRA_DIR.mkdir(parents=True, exist_ok=True)
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     project_name = f"EST_{binary_path.stem}"
-    report_path = GHIDRA_DIR / f"{binary_path.stem}_report.txt"
+    report_path = REPORTS_DIR / f"{binary_path.stem}_report.html"
 
     console.print(f"[bold]Binary:[/bold] {binary_path}")
     console.print(f"[bold]Project:[/bold] {project_name}")
@@ -642,51 +644,25 @@ def run_ghidra_analysis(binary_path):
 
     console.print("[green]✓ Ghidra analysis complete![/green]\n")
 
-    # Display the report
+    # Show analysis summary from Ghidra output
+    for line in output.splitlines():
+        if "Total Time" in line or "Analysis succeeded" in line or "secs" in line:
+            console.print(f"[dim]{line.strip()}[/dim]")
+
     if report_path.exists():
-        report_content = report_path.read_text(errors='replace')
-
-        # Show report sections interactively
-        sections = report_content.split("\n\n")
-        page_size = 60
-
-        lines = report_content.splitlines()
-        total_lines = len(lines)
-        offset = 0
-
-        while offset < total_lines:
-            clear_screen()
-            console.print(f"[bold cyan]═══ Ghidra Report: {binary_path.name} ═══[/bold cyan]")
-            console.print(f"[dim]Lines {offset+1}-{min(offset+page_size, total_lines)} of {total_lines}[/dim]\n")
-
-            chunk = lines[offset:offset+page_size]
-            for line in chunk:
-                # Color-code the output
-                if line.startswith("  [!]"):
-                    console.print(f"[red]{line}[/red]")
-                elif line.startswith("  //"):
-                    console.print(f"[cyan]{line}[/cyan]")
-                elif line.startswith("===") or line.startswith("---"):
-                    console.print(f"[bold yellow]{line}[/bold yellow]")
-                elif line.startswith("  0x"):
-                    console.print(f"[green]{line}[/green]")
-                else:
-                    console.print(line)
-
-            offset += page_size
-            if offset < total_lines:
-                cmd = Prompt.ask("\n[dim]Enter=next page, q=quit, s=save path[/dim]").strip().lower()
-                if cmd == "q":
-                    break
-            else:
-                console.print(f"\n[bold]Full report saved to:[/bold] {report_path}")
-                Prompt.ask("\nPress Enter to continue")
+        size = report_path.stat().st_size
+        size_str = f"{size/1024:.1f} KB" if size < 1024*1024 else f"{size/1024/1024:.1f} MB"
+        console.print(f"\n[bold green]HTML report saved:[/bold green] {report_path} ({size_str})")
+        console.print(f"\n[yellow]Open in your browser:[/yellow]")
+        console.print(f"  file://{report_path}")
+        console.print(f"\n[dim]The report is in tools/reports/ on your host machine.[/dim]")
     else:
         console.print("[yellow]Report file not generated. Ghidra log:[/yellow]\n")
         for line in output.splitlines():
             if any(k in line for k in ["INFO", "WARN", "ERROR", "Script"]):
                 console.print(f"[dim]{line}[/dim]")
-        Prompt.ask("\nPress Enter to continue")
+
+    Prompt.ask("\nPress Enter to continue")
 
 
 def search_vuln_patterns(binary_path):
