@@ -87,8 +87,9 @@ RUN git clone --depth 1 https://github.com/openwrt/firmware-utils.git /tmp/firmw
 # Create work directory
 WORKDIR /work
 
-# Copy CLI tool
+# Copy CLI tool and Ghidra scripts
 COPY est.py /usr/local/bin/est
+COPY ExportReport.py /opt/ghidra_scripts/ExportReport.py
 RUN chmod +x /usr/local/bin/est
 
 # Create directories

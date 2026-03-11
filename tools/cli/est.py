@@ -611,37 +611,82 @@ def run_ghidra_analysis(binary_path):
 
     GHIDRA_DIR.mkdir(parents=True, exist_ok=True)
     project_name = f"EST_{binary_path.stem}"
+    report_path = GHIDRA_DIR / f"{binary_path.stem}_report.txt"
 
     console.print(f"[bold]Binary:[/bold] {binary_path}")
-    console.print(f"[bold]Project:[/bold] {project_name}\n")
+    console.print(f"[bold]Project:[/bold] {project_name}")
+    console.print(f"[bold]Report:[/bold] {report_path}\n")
 
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console
     ) as progress:
-        task = progress.add_task("Running Ghidra auto-analysis (this may take a while)...", total=None)
+        task = progress.add_task("Running Ghidra auto-analysis...", total=None)
         success, output = run_command(
             f"timeout 600 {GHIDRA_HEADLESS} '{GHIDRA_DIR}' {project_name} "
             f"-import '{binary_path}' -overwrite "
             f"-analysisTimeoutPerFile 300 "
+            f"-scriptPath /opt/ghidra_scripts "
+            f"-postScript ExportReport.py '{report_path}' "
             f"2>&1",
         )
 
-    if success:
-        console.print("[green]✓ Ghidra analysis complete![/green]\n")
-        # Show summary: filter for interesting lines
-        for line in output.splitlines():
-            if any(k in line for k in ["INFO", "WARN", "functions", "Import", "Analysis"]):
-                console.print(f"[dim]{line}[/dim]")
-    else:
-        console.print(f"[red]Ghidra analysis failed[/red]")
-        # Show last 30 lines of output for debugging
+    if not success:
+        console.print(f"[red]Ghidra analysis failed[/red]\n")
         lines = output.strip().splitlines()
         for line in lines[-30:]:
             console.print(f"[dim]{line}[/dim]")
+        Prompt.ask("\nPress Enter to continue")
+        return
 
-    Prompt.ask("\nPress Enter to continue")
+    console.print("[green]✓ Ghidra analysis complete![/green]\n")
+
+    # Display the report
+    if report_path.exists():
+        report_content = report_path.read_text(errors='replace')
+
+        # Show report sections interactively
+        sections = report_content.split("\n\n")
+        page_size = 60
+
+        lines = report_content.splitlines()
+        total_lines = len(lines)
+        offset = 0
+
+        while offset < total_lines:
+            clear_screen()
+            console.print(f"[bold cyan]═══ Ghidra Report: {binary_path.name} ═══[/bold cyan]")
+            console.print(f"[dim]Lines {offset+1}-{min(offset+page_size, total_lines)} of {total_lines}[/dim]\n")
+
+            chunk = lines[offset:offset+page_size]
+            for line in chunk:
+                # Color-code the output
+                if line.startswith("  [!]"):
+                    console.print(f"[red]{line}[/red]")
+                elif line.startswith("  //"):
+                    console.print(f"[cyan]{line}[/cyan]")
+                elif line.startswith("===") or line.startswith("---"):
+                    console.print(f"[bold yellow]{line}[/bold yellow]")
+                elif line.startswith("  0x"):
+                    console.print(f"[green]{line}[/green]")
+                else:
+                    console.print(line)
+
+            offset += page_size
+            if offset < total_lines:
+                cmd = Prompt.ask("\n[dim]Enter=next page, q=quit, s=save path[/dim]").strip().lower()
+                if cmd == "q":
+                    break
+            else:
+                console.print(f"\n[bold]Full report saved to:[/bold] {report_path}")
+                Prompt.ask("\nPress Enter to continue")
+    else:
+        console.print("[yellow]Report file not generated. Ghidra log:[/yellow]\n")
+        for line in output.splitlines():
+            if any(k in line for k in ["INFO", "WARN", "ERROR", "Script"]):
+                console.print(f"[dim]{line}[/dim]")
+        Prompt.ask("\nPress Enter to continue")
 
 
 def search_vuln_patterns(binary_path):
