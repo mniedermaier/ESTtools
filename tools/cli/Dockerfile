@@ -38,7 +38,7 @@ RUN apt-get update && apt-get install -y \
     squashfs-tools \
     libssl-dev \
     xz-utils \
-    openjdk-17-jdk-headless \
+    openjdk-21-jdk-headless \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Bootlin MIPS big-endian uClibc cross-toolchain (compatible with Buildroot 2009.05 targets)
@@ -56,6 +56,7 @@ RUN curl -sL https://github.com/NationalSecurityAgency/ghidra/releases/download/
     rm /tmp/ghidra.zip
 
 ENV GHIDRA_INSTALL_DIR=/opt/ghidra_12.0.4_PUBLIC
+ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 ENV PATH="/opt/ghidra_12.0.4_PUBLIC/support:${PATH}"
 
 # Install Python packages

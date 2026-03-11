@@ -622,10 +622,9 @@ def run_ghidra_analysis(binary_path):
     ) as progress:
         task = progress.add_task("Running Ghidra auto-analysis (this may take a while)...", total=None)
         success, output = run_command(
-            f"{GHIDRA_HEADLESS} '{GHIDRA_DIR}' {project_name} "
+            f"timeout 600 {GHIDRA_HEADLESS} '{GHIDRA_DIR}' {project_name} "
             f"-import '{binary_path}' -overwrite "
             f"-analysisTimeoutPerFile 300 "
-            f"-scriptPath '{GHIDRA_DIR}' "
             f"2>&1",
         )
 
